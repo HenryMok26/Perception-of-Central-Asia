@@ -1,0 +1,67 @@
+library(jiebaR)
+library(jiebaRD)
+library(dplyr)
+library(wordcloud2)
+library(chinese.misc)
+library(tm)
+
+Weibo <- read.csv("Weibo Comments.csv",header = T, encoding = "UTF-8")
+
+## Tidying Weibo data
+Weibo_df <- tibble(Weibo)
+Weibo_df
+
+Weibo_string <- paste(Weibo_df, sep=" ", collapse=NULL)
+
+## Chinese word segment using JiebaR
+cutter <- worker(type = "mix", user = "diydic.txt", stop_word = "stop.txt", topn = 5, symbol = F)
+Weibo_seg <- segment(Weibo_string, cutter)
+
+Weibo_seg
+
+## Key words extraction 
+extractor = worker("keywords", topn = 50)
+seger <- cutter
+ex_results <- segment(Weibo_seg, seger)
+vector_keywords(ex_results, extractor)
+
+## Word count
+data2 <- as.data.frame(table(Weibo_seg))
+colnames(data2) = c("Word","freq")
+ordfreq <- data2[order(data2$freq,decreasing = T),]
+ordfreq
+
+## Word cloud 
+wordcloud2(ordfreq, size = 1, fontFamily = "微软雅黑",
+           color = "random-light", backgroundColor = "grey")
+
+## Create Document Term Matrix (DTM)
+dtm_Weibo <- corp_or_dtm(
+  Weibo_seg,
+  from = "v",
+  type = "dtm",
+  enc = "auto",
+  mycutter = DEFAULT_cutter,
+  stop_word = "jiebar",
+  stop_pattern = NULL,
+  control = "auto",
+  myfun1 = NULL,
+  myfun2 = NULL,
+  special = "",
+  use_stri_replace_all = FALSE
+)
+dtm_Weibo
+
+## Word correlation 
+myword <- c('中亚','俄罗斯','美国','丝绸之路','中欧班列','乌克兰','联通','网络','利益','合作','政治',
+            '发展','哈萨克斯坦','阿富汗', '新疆','历史','足球')
+  # 中亚 = Central Asia; 俄罗斯 = Russia; 美国 = USA; 丝绸之路 = Silk Road; 中欧班列 = China-Europe Train;
+  # 乌克兰 = Ukraine; 联通 = Connect; 网络 = Network/Internet; 利益 = Interests; 合作 = Cooperation;
+  # 政治 = Politics; 发展 = Development; 哈萨克斯坦 = Kazakhstan; 阿富汗 = Afghanistan; 新疆 = Xinjiang
+  # 历史 = History； 足球 = Soccer
+mycor1 <- word_cor(dtm_Weibo, word = myword)
+mycor1
+
+
+
+
