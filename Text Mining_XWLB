@@ -1,0 +1,81 @@
+library(jiebaR)
+library(jiebaRD)
+library(dplyr)
+library(wordcloud2)
+library(chinese.misc)
+library(tm)
+
+
+## Read 新闻联播(XWLB) data
+XWLB <- read.csv("XWLB_May2017_May2022.csv", header = T, encoding = "UTF-8")
+View(XWLB)
+  #新闻联播 = Xinwen Lianbo OR Network News Broadcast
+
+## Tidying 新闻联播 data
+XWLB_df <- tibble(XWLB)
+XWLB_df
+
+XWLB_string <- paste(XWLB_df, sep=" ", collapse=NULL)
+
+## Chinese word segment using JiebaR
+cutter <- worker(type = "mix", user = "diydic.txt", stop_word = "stop.txt", topn = 5, symbol = F)
+XWLB_seg <- segment(XWLB_string, cutter)
+
+XWLB_seg
+
+## Key words extraction 
+extractor = worker("keywords", topn = 300)
+seger <- cutter
+ex_results <- segment(XWLB_seg, seger)
+vector_keywords(ex_results, extractor)
+
+## Word count
+data <- as.data.frame(table(XWLB_seg))
+colnames(data) = c("Word","freq")
+ordfreq <- data[order(data$freq,decreasing = T),]
+ordfreq
+
+## Word cloud 
+wordcloud2(ordfreq, size = 1, fontFamily = "微软雅黑",
+           color = "random-light", backgroundColor = "grey")
+
+## Create Document Term Matrix (DTM)
+dtm_XWLB <- corp_or_dtm(
+  XWLB_seg,
+  from = "v",
+  type = "dtm",
+  enc = "auto",
+  mycutter = DEFAULT_cutter,
+  stop_word = "jiebar",
+  stop_pattern = NULL,
+  control = "auto",
+  myfun1 = NULL,
+  myfun2 = NULL,
+  special = "",
+  use_stri_replace_all = FALSE
+)
+dtm_XWLB
+
+## Word correlation 
+myword <- c('中亚','能源')
+mycor1 <- word_cor(dtm_XWLB, word = myword)
+  # Run successfully
+  # 中亚 = Central Asia; 能源 = Energy 
+
+myword2 <- c("中亚","上合")
+mycor2 <- word_cor(dtm_XWLB, word = myword2)
+  # Run successfully
+  # 上合 = Shanghai Cooperation Organization (SCO)
+
+myword3 <- c("中亚","上合","能源",'发展','合作','经济')
+mycor3 <- word_cor(dtm_XWLB, word = myword3)
+  # Run successfully
+
+myword4 <- c("中亚","上合","能源","一带一路","命运共同体")
+mycor4 <- word_cor(dtm_XWLB, word = myword4)
+  # Error detected: It appears that the "word_cor" function can only find the correlation among 
+  #two-character Chinese word (e.g., "中亚"), but when the Chinese word has more than two characters
+  # (e.g., “一带一路”), it could not detect. 
+  # 一带一路 = Belt and Road Initiative; 命运共同体 = A community with a shared future
+
+
